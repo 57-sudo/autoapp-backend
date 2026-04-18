@@ -24,8 +24,26 @@ export const getEvents = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const createEvent = asyncHandler(async (req: Request, res: Response) => {
-  const image = req.file ? (req.file as any).path : '';
-  const event = await Event.create({ ...req.body, creator: req.user!._id, image, participants: [req.user!._id] });
+  // Gérer le fichier uploadé (Multer) OU l'URL Cloudinary envoyée dans le body
+  let image: string = '';
+  
+  if (req.file) {
+    // Cas 1: Fichier uploadé via Multer
+    image = (req.file as any).path;
+  } else if (req.body.image && typeof req.body.image === 'string') {
+    // Cas 2: URL Cloudinary envoyée depuis le frontend
+    image = req.body.image;
+  }
+  
+  const event = await Event.create({ 
+    title: req.body.title,
+    description: req.body.description,
+    address: req.body.address,
+    date: req.body.date,
+    creator: req.user!._id, 
+    image,
+    participants: [req.user!._id] 
+  });
   await event.populate('creator', 'name avatar');
   res.status(201).json({ success: true, data: event });
 });

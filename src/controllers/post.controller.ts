@@ -27,8 +27,22 @@ export const getFeed = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const createPost = asyncHandler(async (req: Request, res: Response) => {
-  const images = req.files ? (req.files as Express.Multer.File[]).map((f: any) => f.path) : [];
-  const post = await Post.create({ ...req.body, author: req.user!._id, images });
+  // Gérer les fichiers uploadés (Multer) OU les URLs Cloudinary envoyées dans le body
+  let images: string[] = [];
+  
+  if (req.files && (req.files as Express.Multer.File[]).length > 0) {
+    // Cas 1: Fichiers uploadés via Multer
+    images = (req.files as Express.Multer.File[]).map((f: any) => f.path);
+  } else if (req.body.images && Array.isArray(req.body.images)) {
+    // Cas 2: URLs Cloudinary envoyées depuis le frontend
+    images = req.body.images;
+  }
+  
+  const post = await Post.create({ 
+    description: req.body.description, 
+    author: req.user!._id, 
+    images 
+  });
   await post.populate('author', 'name avatar');
   res.status(201).json({ success: true, data: post });
 });

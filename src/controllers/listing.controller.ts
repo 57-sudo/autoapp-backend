@@ -28,8 +28,26 @@ export const getListings = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const createListing = asyncHandler(async (req: Request, res: Response) => {
-  const images = req.files ? (req.files as Express.Multer.File[]).map((f: any) => f.path) : [];
-  const listing = await Listing.create({ ...req.body, seller: req.user!._id, images });
+  // Gérer les fichiers uploadés (Multer) OU les URLs Cloudinary envoyées dans le body
+  let images: string[] = [];
+  
+  if (req.files && (req.files as Express.Multer.File[]).length > 0) {
+    // Cas 1: Fichiers uploadés via Multer
+    images = (req.files as Express.Multer.File[]).map((f: any) => f.path);
+  } else if (req.body.images && Array.isArray(req.body.images)) {
+    // Cas 2: URLs Cloudinary envoyées depuis le frontend
+    images = req.body.images;
+  }
+  
+  const listing = await Listing.create({ 
+    title: req.body.title,
+    description: req.body.description,
+    price: req.body.price,
+    category: req.body.category,
+    condition: req.body.condition,
+    seller: req.user!._id, 
+    images 
+  });
   res.status(201).json({ success: true, data: listing });
 });
 
