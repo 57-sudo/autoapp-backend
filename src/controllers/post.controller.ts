@@ -4,6 +4,7 @@ import User from '../models/User';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { parseCursor, buildPagination } from '../utils/pagination';
+import { createNotification } from './notification.controller';
 
 export const getFeed = asyncHandler(async (req: Request, res: Response) => {
   const limit = parseInt(req.query.limit as string) || 20;
@@ -66,6 +67,18 @@ export const likePost = asyncHandler(async (req: Request, res: Response) => {
     post.likes = post.likes.filter((id) => id.toString() !== String(userId));
   } else {
     post.likes.push(userId as any);
+    // Envoyer notification si ce n'est pas son propre post
+    if (post.author.toString() !== String(userId)) {
+      const user = await User.findById(userId);
+      createNotification({
+        recipient: post.author.toString(),
+        sender: userId.toString(),
+        type: 'like',
+        title: 'Nouveau like',
+        body: `${user?.name} a aimé votre publication`,
+        data: { postId: post._id.toString() },
+      }).catch(console.error);
+    }
   }
   await post.save();
   res.json({ success: true, data: { likesCount: post.likes.length, isLiked: !isLiked } });
@@ -78,6 +91,20 @@ export const addComment = asyncHandler(async (req: Request, res: Response) => {
   post.comments.push({ author: req.user!._id as any, content: req.body.content, createdAt: new Date() });
   await post.save();
   await post.populate('comments.author', 'name avatar');
+  
+  // Envoyer notification si ce n'est pas son propre post
+  if (post.author.toString() !== String(req.user!._id)) {
+    const user = await User.findById(req.user!._id);
+    createNotification({
+      recipient: post.author.toString(),
+      sender: req.user!._id.toString(),
+      type: 'comment',
+      title: 'Nouveau commentaire',
+      body: `${user?.name} a commenté votre publication`,
+      data: { postId: post._id.toString() },
+    }).catch(console.error);
+  }
+  
   res.status(201).json({ success: true, data: post.comments });
 });
 
